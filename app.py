@@ -9,20 +9,18 @@ from linebot.exceptions import (
 )
 from linebot.models import *
 import tempfile, os
-from config import client_id, client_secret, album_id, access_token, refresh_token, line_channel_access_token, \
-    line_channel_secret
+from config import client_id, client_secret, album_id, access_token, refresh_token, line_channel_access_token, line_channel_secret
 import matplotlib
-
 matplotlib.use('Agg')
 import matplotlib.pyplot as pl
-
-pl.rcParams['font.sans-serif'] = ['Microsoft JhengHei']
-pl.rcParams['font.serif'] = ['Microsoft JhengHei']
+pl.rcParams['font.sans-serif']=['Microsoft JhengHei']
+pl.rcParams['font.serif']=['Microsoft JhengHei']
 from matplotlib.gridspec import GridSpec
 import numpy
 from PIL import Image
 
 ###above for import package
+
 
 
 app = Flask(__name__)
@@ -63,7 +61,6 @@ def fig2data(fig):
     buf = numpy.roll(buf, 3, axis=2)
     return buf
 
-
 def test():
     figure = pl.figure()
     value = [33, 67]
@@ -82,6 +79,7 @@ def test():
     img = fig2img(figure)
     pl.gcf().clear()
     return img
+
 
 
 @app.route("/callback", methods=['POST'])
@@ -105,11 +103,11 @@ def callback():
 
 @handler.add(MessageEvent, message=(ImageMessage, TextMessage))
 def handle_message(event):
-
     if isinstance(event.message, ImageMessage):
-        message_content = test()
+        imgggggg = test()
+        imgggggg.close()
         ext = 'jpg'
-        #message_content = line_bot_api.get_message_content(event.message.id)
+        message_content = line_bot_api.get_message_content(event.message.id)
         with tempfile.NamedTemporaryFile(dir=static_tmp_path, prefix=ext + '-', delete=False) as tf:
             for chunk in message_content.iter_content():
                 tf.write(chunk)
@@ -135,9 +133,9 @@ def handle_message(event):
                 preview_image_url=image['link']
             )
             line_bot_api.reply_message(
-                event.reply_token, [
-                    TextSendMessage(text='lol'),
-                    image_message])
+                event.reply_token,[
+                TextSendMessage(text='lol'),
+                image_message])
         except:
             line_bot_api.reply_message(
                 event.reply_token,
