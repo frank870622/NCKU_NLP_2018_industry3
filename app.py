@@ -104,7 +104,8 @@ def callback():
 @handler.add(MessageEvent, message=(ImageMessage, TextMessage))
 def handle_message(event):
     if isinstance(event.message, ImageMessage):
-        img = test()
+        imgggggg = test()
+        imgggggg.close()
         ext = 'jpg'
         message_content = line_bot_api.get_message_content(event.message.id)
         with tempfile.NamedTemporaryFile(dir=static_tmp_path, prefix=ext + '-', delete=False) as tf:
@@ -133,8 +134,8 @@ def handle_message(event):
             )
             line_bot_api.reply_message(
                 event.reply_token,[
-                TextSendMessage(text=message_content),
-                img])
+                TextSendMessage(text='lol'),
+                image_message])
         except:
             line_bot_api.reply_message(
                 event.reply_token,
