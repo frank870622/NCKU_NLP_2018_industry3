@@ -1,5 +1,6 @@
+import graphing 
 import random
-from flask import Flask, request, abort
+from flask import Flask, abort, request
 from imgurpython import ImgurClient
 from linebot import (
     LineBotApi, WebhookHandler
@@ -10,14 +11,6 @@ from linebot.exceptions import (
 from linebot.models import *
 import tempfile, os
 from config import client_id, client_secret, album_id, access_token, refresh_token, line_channel_access_token, line_channel_secret
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as pl
-pl.rcParams['font.sans-serif']=['Microsoft JhengHei']
-pl.rcParams['font.serif']=['Microsoft JhengHei']
-from matplotlib.gridspec import GridSpec
-import numpy
-from PIL import Image
 
 ###above for import package
 
@@ -29,56 +22,6 @@ line_bot_api = LineBotApi(line_channel_access_token)
 handler = WebhookHandler(line_channel_secret)
 
 static_tmp_path = os.path.join(os.path.dirname(__file__), 'static', 'tmp')
-
-
-def fig2img(fig):
-    """
-    @brief Convert a Matplotlib figure to a PIL Image in RGBA format and return it
-    @param fig a matplotlib figure
-    @return a Python Imaging Library ( PIL ) image
-    """
-    # put the figure pixmap into a numpy array
-    buf = fig2data(fig)
-    w, h, d = buf.shape
-    return Image.frombytes("RGBA", (w, h), buf.tostring())
-
-
-def fig2data(fig):
-    """
-    @brief Convert a Matplotlib figure to a 4D numpy array with RGBA channels and return it
-    @param fig a matplotlib figure
-    @return a numpy 3D array of RGBA values
-    """
-    # draw the renderer
-    fig.canvas.draw()
-
-    # Get the RGBA buffer from the figure
-    w, h = fig.canvas.get_width_height()
-    buf = numpy.fromstring(fig.canvas.tostring_argb(), dtype=numpy.uint8)
-    buf.shape = (w, h, 4)
-
-    # canvas.tostring_argb give pixmap in ARGB mode. Roll the ALPHA channel to have it in RGBA mode
-    buf = numpy.roll(buf, 3, axis=2)
-    return buf
-
-def test():
-    figure = pl.figure()
-    value = [33, 67]
-    value2 = [40, 60]
-    labels = '教師比例', '學生比例'
-    colors = ['lightcoral', 'lightskyblue']
-
-    thegrid = GridSpec(1, 2)
-    pl.subplot(thegrid[0, 0], aspect=1)
-    pl.pie(value, labels=labels, colors=colors, autopct='%1.1f%%', shadow=True)
-    pl.title('中葉大學')
-
-    pl.subplot(thegrid[0, 1], aspect=1)
-    pl.pie(value2, labels=labels, colors=colors, autopct='%1.1f%%', shadow=True)
-    pl.title('小葉大學')
-    img = fig2img(figure)
-    pl.gcf().clear()
-    return img
 
 
 
@@ -103,70 +46,136 @@ def callback():
 
 @handler.add(MessageEvent, message=(ImageMessage, TextMessage))
 def handle_message(event):
-    if isinstance(event.message, ImageMessage):
-        imgggggg = test()
-        
-        ext = 'png'
-        #message_content = line_bot_api.get_message_content(event.message.id)
-        with tempfile.NamedTemporaryFile(dir=static_tmp_path, prefix=ext + '-', delete=False) as tf:
-            ##for chunk in message_content.iter_content():
-               # tf.write(chunk)
-            imgggggg.save(tf, "PNG") 
-            imgggggg.close()
-            tempfile_path = tf.name
+    if isinstance(event.message, TextMessage):
+        if '教學' in event.message.text:
+            line_bot_api.reply_message(
+                    event.reply_token,
+                    TextSendMessage(text='支援的輸入:\n師生數量\n註冊率\n就業比例\n學測分數\n指考分數'))
+            return 0
+        elif '師生數量' in event.message.text:
+            img = graphing.drawing('師生數量') 
+            ext = 'png'
+            with tempfile.NamedTemporaryFile(dir=static_tmp_path, prefix=ext + '-', delete=False) as tf:
+                img.save(tf, "PNG") 
+                img.close()
+                tempfile_path = tf.name
 
-        dist_path = tempfile_path + '.' + ext
-        dist_name = os.path.basename(dist_path)
-        os.rename(tempfile_path, dist_path)
-        try:
-            client = ImgurClient(client_id, client_secret, access_token, refresh_token)
-            config = {
-                'album': album_id,
-                'name': 'Catastrophe!',
-                'title': 'Catastrophe!',
-                'description': 'Cute kitten being cute on '
-            }
-            path = os.path.join('static', 'tmp', dist_name)
-            image = client.upload_from_path(path, config=config, anon=False)
-            os.remove(path)
-            print(path)
-            image_message = ImageSendMessage(
-                original_content_url=image['link'],
-                preview_image_url=image['link']
-            )
+            dist_path = tempfile_path + '.' + ext
+            dist_name = os.path.basename(dist_path)
+            os.rename(tempfile_path, dist_path)
+            try:
+                client = ImgurClient(client_id, client_secret, access_token, refresh_token)
+                config = {
+                    'album': album_id,
+                    'name': 'Catastrophe!',
+                    'title': 'Catastrophe!',
+                    'description': 'Cute kitten being cute on '
+                }
+                path = os.path.join('static', 'tmp', dist_name)
+                image = client.upload_from_path(path, config=config, anon=False)
+                os.remove(path)
+                print(path)
+                image_message = ImageSendMessage(
+                    original_content_url=image['link'],
+                    preview_image_url=image['link']
+                )
+                line_bot_api.reply_message(
+                    event.reply_token,[
+                    TextSendMessage(text='以下是您所查詢的資料'),
+                    image_message])
+            except:
+                line_bot_api.reply_message(
+                    event.reply_token,
+                    TextSendMessage(text='操作失敗，請重新輸入'))
+            return 0
+        elif '註冊率' in event.message.text:
+            text = graphing.drawing('註冊率')
             line_bot_api.reply_message(
-                event.reply_token,[
-                TextSendMessage(text=tempfile_path + "\n" + dist_path),
-                image_message])
-        except:
-            line_bot_api.reply_message(
-                event.reply_token,
-                TextSendMessage(text='上傳失敗'))
-        return 0
+                    event.reply_token,
+                    TextSendMessage(text="以下是您所查詢的資料\n" + text))
+            return 0
+        elif '就業比例' in event.message.text:
+            img = graphing.drawing('就業比例') 
+            ext = 'png'
+            with tempfile.NamedTemporaryFile(dir=static_tmp_path, prefix=ext + '-', delete=False) as tf:
+                img.save(tf, "PNG") 
+                img.close()
+                tempfile_path = tf.name
 
-    elif isinstance(event.message, VideoMessage):
-        ext = 'mp4'
-    elif isinstance(event.message, AudioMessage):
-        ext = 'm4a'
-    elif isinstance(event.message, TextMessage):
-        if event.message.text == "看看大家都傳了什麼圖片":
-            client = ImgurClient(client_id, client_secret)
-            images = client.get_album_images(album_id)
-            index = random.randint(0, len(images) - 1)
-            url = images[index].link
-            image_message = ImageSendMessage(
-                original_content_url=url,
-                preview_image_url=url
-            )
+            dist_path = tempfile_path + '.' + ext
+            dist_name = os.path.basename(dist_path)
+            os.rename(tempfile_path, dist_path)
+            try:
+                client = ImgurClient(client_id, client_secret, access_token, refresh_token)
+                config = {
+                    'album': album_id,
+                    'name': 'Catastrophe!',
+                    'title': 'Catastrophe!',
+                    'description': 'Cute kitten being cute on '
+                }
+                path = os.path.join('static', 'tmp', dist_name)
+                image = client.upload_from_path(path, config=config, anon=False)
+                os.remove(path)
+                print(path)
+                image_message = ImageSendMessage(
+                    original_content_url=image['link'],
+                    preview_image_url=image['link']
+                )
+                line_bot_api.reply_message(
+                    event.reply_token,[
+                    TextSendMessage(text='以下是您所查詢的資料'),
+                    image_message])
+            except:
+                line_bot_api.reply_message(
+                    event.reply_token,
+                    TextSendMessage(text='操作失敗，請重新輸入'))
+            return 0
+        elif '學測分數' in event.message.text:
+            img = graphing.drawing('學測分數') 
+            ext = 'png'
+            with tempfile.NamedTemporaryFile(dir=static_tmp_path, prefix=ext + '-', delete=False) as tf:
+                img.save(tf, "PNG") 
+                img.close()
+                tempfile_path = tf.name
+
+            dist_path = tempfile_path + '.' + ext
+            dist_name = os.path.basename(dist_path)
+            os.rename(tempfile_path, dist_path)
+            try:
+                client = ImgurClient(client_id, client_secret, access_token, refresh_token)
+                config = {
+                    'album': album_id,
+                    'name': 'Catastrophe!',
+                    'title': 'Catastrophe!',
+                    'description': 'Cute kitten being cute on '
+                }
+                path = os.path.join('static', 'tmp', dist_name)
+                image = client.upload_from_path(path, config=config, anon=False)
+                os.remove(path)
+                print(path)
+                image_message = ImageSendMessage(
+                    original_content_url=image['link'],
+                    preview_image_url=image['link']
+                )
+                line_bot_api.reply_message(
+                    event.reply_token,[
+                    TextSendMessage(text='以下是您所查詢的資料'),
+                    image_message])
+            except:
+                line_bot_api.reply_message(
+                    event.reply_token,
+                    TextSendMessage(text='操作失敗，請重新輸入'))
+            return 0
+        elif '指考分數' in event.message.text:
+            text = graphing.drawing('指考分數')
             line_bot_api.reply_message(
-                event.reply_token, image_message)
+                    event.reply_token,
+                    TextSendMessage(text="以下是您所查詢的資料\n" + text))
             return 0
         else:
             line_bot_api.reply_message(
-                event.reply_token, [
-                    TextSendMessage(text=' yoyo'),
-                    TextSendMessage(text='請傳一張圖片給我')
-                ])
+                    event.reply_token,
+                    TextSendMessage(text="不好意思，您的輸入沒有支援的內容可以呈現\n"))
             return 0
 
 
